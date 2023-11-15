@@ -1,0 +1,15 @@
+requests
+
+matplotlib
+plotly
+seborn
+
+numpy
+pandas
+
+# Jupyter
+notebook
+
+# PyTorch
+# torch
+# tensorboard
