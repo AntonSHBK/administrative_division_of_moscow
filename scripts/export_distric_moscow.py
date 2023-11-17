@@ -1,6 +1,7 @@
 import requests
 import pickle
 import csv
+import pandas as pd
 
 import moscow
 
@@ -40,12 +41,20 @@ def load_pickle(file):
         return pickle.load(data_file)
     
 def save_to_csv(data, file_name):
-    with open(file_name, "w", newline="", encoding='UTF-8') as f:
-        writer = csv.writer(f, delimiter=';')
-        # using writerow to write individual record one by one
-        writer.writerow(data[0].keys())
-        for one_object in data:
-            writer.writerow([v for k, v in one_object.items()])
+    label = list(data[0].keys())
+    pd_frame = pd.DataFrame(
+        data,
+        columns=label
+    )
+    pd_frame.to_csv(file_name, encoding='UTF-8', sep=';')
+            
+def pandas_xlsx(data, file_name):
+    label = list(data[0].keys())
+    pd_frame = pd.DataFrame(
+        data,
+        columns=label
+    )
+    pd_frame.to_excel(file_name)
 
 def convert_to_short_data(data):
     short_data = []
@@ -84,6 +93,11 @@ def main():
     save_to_csv(moscow_city_districts, 'moscow_city_districts.csv')
     save_to_csv(moscow_area, 'moscow_area.csv')
     save_to_csv(moscow_area_districts, 'moscow_area_districts.csv')
+    
+    pandas_xlsx(moscow_city, 'moscow_city.xlsx')
+    pandas_xlsx(moscow_city_districts, 'moscow_city_districts.xlsx')
+    pandas_xlsx(moscow_area, 'moscow_area.xlsx')
+    pandas_xlsx(moscow_area_districts, 'moscow_area_districts.xlsx')
     
 if __name__ == "__main__":
     main()
