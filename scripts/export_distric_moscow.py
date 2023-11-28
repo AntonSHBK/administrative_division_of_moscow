@@ -7,7 +7,7 @@ import moscow
 
 ADDRESS = "https://nominatim.openstreetmap.org/search"
 
-def get_geojson_list(addresses):
+def get_geojson_list(addresses, post_index=None, government=None):
     '''
     return:
     dict ->
@@ -19,7 +19,10 @@ def get_geojson_list(addresses):
         "format": "json",
         "q": ''
     }
-    for address in addresses:        
+    if post_index:
+        post_index = post_index.splitlines()
+    
+    for index, address in enumerate(addresses):        
         params['q'] = address
         if not address:
             print('Not address ("")')
@@ -30,6 +33,16 @@ def get_geojson_list(addresses):
         if response.status_code == 200:
             json = response.json()
             geojson_list.append(json[0])
+            if post_index:
+                geojson_list[index]['post_index'] = post_index[index]
+            else:
+                geojson_list[index]['post_index'] = '14????'
+            if government:
+                geojson_list[index]['government_name'] = government['names'][index]
+                geojson_list[index]['government_coords'] = government['coords'][index]
+            else:
+                geojson_list[index]['government_name'] = ''
+                geojson_list[index]['government_coords'] = ''
     return geojson_list
 
 def save_pickle(data, file:str):
@@ -46,7 +59,7 @@ def save_to_csv(data, file_name):
         data,
         columns=label
     )
-    pd_frame.to_csv(file_name, encoding='UTF-8', sep=';')
+    pd_frame.to_csv(file_name, encoding='utf-16', sep=';')
             
 def pandas_xlsx(data, file_name):
     label = list(data[0].keys())
@@ -62,41 +75,86 @@ def convert_to_short_data(data):
         object_dict = {
             'name': one_object['name'],
             'osm_id': one_object['osm_id'],
-            "geojson": one_object['geojson']['coordinates']
+            'geojson': one_object['geojson']['coordinates'],
+            'post_index': one_object['post_index'],
+            'government_name': one_object['government_name'],
+            'government_coord': one_object['government_coords']
         }
         short_data.append(object_dict)
     return short_data
 
 def main():    
-    moscow_city = get_geojson_list(moscow.moscow_city)
-    moscow_city = convert_to_short_data(moscow_city)
-    save_pickle(moscow_city, 'moscow_city')
+    # moscow_city = get_geojson_list(moscow.moscow_city)
+    # moscow_city = convert_to_short_data(moscow_city)
+    # save_pickle(moscow_city, 'moscow_city')
     
-    moscow_city_districts = get_geojson_list(moscow.moscow_city_districts)
-    moscow_city_districts = convert_to_short_data(moscow_city_districts)
-    save_pickle(moscow_city_districts, 'moscow_city_districts')
+    # moscow_city_districts = get_geojson_list(moscow.moscow_city_districts)
+    # moscow_city_districts = convert_to_short_data(moscow_city_districts)
+    # save_pickle(moscow_city_districts, 'moscow_city_districts')
     
-    moscow_area = get_geojson_list(moscow.moscow_area)
-    moscow_area = convert_to_short_data(moscow_area)
-    save_pickle(moscow_area, 'moscow_area')
     
-    moscow_area_districts = get_geojson_list(moscow.moscow_area_districts)
+    
+    
+    # moscow_area = get_geojson_list(moscow.moscow_area)
+    # moscow_area = convert_to_short_data(moscow_area)
+    # save_pickle(moscow_area, 'moscow_area')
+    
+    
+    
+    
+    
+    moscow_area_districts = get_geojson_list(moscow.moscow_area_districts,
+                                             post_index=moscow.moscow_area_districts_post_index,
+                                             government=moscow.moscow_area_districts_government)
     moscow_area_districts = convert_to_short_data(moscow_area_districts)
+    
+    # объединить пущино и протвино городским округом серпухов
+    serp_index = {'serp': 15, 'protvino': 44, 'pushino': 16}
+    
+    moscow_area_districts[serp_index['serp']]['geojson'] = \
+        moscow_area_districts[serp_index['serp']]['geojson'] + \
+            moscow_area_districts[serp_index['protvino']]['geojson'] + \
+                moscow_area_districts[serp_index['pushino']]['geojson']
+    
+    moscow_area_districts[serp_index['serp']]['post_index'] = " ".join([
+        moscow_area_districts[serp_index['serp']]['post_index'],
+        moscow_area_districts[serp_index['protvino']]['post_index'],
+        moscow_area_districts[serp_index['pushino']]['post_index']
+    ])    
+    moscow_area_districts.pop(serp_index['protvino'])   
+    moscow_area_districts.pop(serp_index['pushino'])  
+    
+    # объединить электрогорск и павловопосадск в повлопосадский городской округ    
+    pavl_index = {'pavl': 20, 'electro': 49}
+    
+    moscow_area_districts[pavl_index['pavl']]['geojson'] = \
+        moscow_area_districts[pavl_index['pavl']]['geojson'] + \
+            moscow_area_districts[pavl_index['electro']]['geojson']
+                
+    moscow_area_districts[pavl_index['pavl']]['post_index'] = " ".join([
+        moscow_area_districts[pavl_index['pavl']]['post_index'],
+        moscow_area_districts[pavl_index['electro']]['post_index'],
+    ])    
+    moscow_area_districts.pop(pavl_index['electro'])
+    
     save_pickle(moscow_area_districts, 'moscow_area_districts')
     
-    moscow_city = load_pickle('moscow_city')
-    moscow_city_districts = load_pickle('moscow_city_districts')
-    moscow_area = load_pickle('moscow_area')
+    
+    
+    
+    # moscow_city = load_pickle('moscow_city')
+    # moscow_city_districts = load_pickle('moscow_city_districts')
+    # moscow_area = load_pickle('moscow_area')
     moscow_area_districts = load_pickle('moscow_area_districts')
     
-    save_to_csv(moscow_city, 'moscow_city.csv')
-    save_to_csv(moscow_city_districts, 'moscow_city_districts.csv')
-    save_to_csv(moscow_area, 'moscow_area.csv')
+    # save_to_csv(moscow_city, 'moscow_city.csv')
+    # save_to_csv(moscow_city_districts, 'moscow_city_districts.csv')
+    # save_to_csv(moscow_area, 'moscow_area.csv')
     save_to_csv(moscow_area_districts, 'moscow_area_districts.csv')
     
-    pandas_xlsx(moscow_city, 'moscow_city.xlsx')
-    pandas_xlsx(moscow_city_districts, 'moscow_city_districts.xlsx')
-    pandas_xlsx(moscow_area, 'moscow_area.xlsx')
+    # pandas_xlsx(moscow_city, 'moscow_city.xlsx')
+    # pandas_xlsx(moscow_city_districts, 'moscow_city_districts.xlsx')
+    # pandas_xlsx(moscow_area, 'moscow_area.xlsx')
     pandas_xlsx(moscow_area_districts, 'moscow_area_districts.xlsx')
     
 if __name__ == "__main__":
